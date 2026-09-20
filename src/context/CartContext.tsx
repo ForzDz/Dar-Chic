@@ -46,12 +46,13 @@ function readStoredCart(): CartItem[] {
         (line as CartItem).quantity > 0 &&
         typeof (line as CartItem).product?.id === 'string',
     )
-    // Le produit stocké peut être périmé (nom, prix, photo, stock changés) : on repart du catalogue
-    // actuel et on retire les produits qui n’existent plus. Demain, ce catalogue viendra de la base.
-    return lines.flatMap((line) => {
+    // Le produit stocké peut être périmé (nom, prix, photo, stock changés). Quand il figure encore
+    // dans le catalogue local, on repart de celui-ci. Sinon on garde la ligne telle quelle : depuis
+    // que l’accueil lit la table `products` de Supabase, un produit absent d’ici est normal.
+    return lines.map((line) => {
       const product = products.find((p) => p.id === line.product.id)
-      if (!product || product.stock <= 0) return []
-      return [{ product, quantity: Math.min(line.quantity, product.stock) }]
+      if (!product) return line
+      return { product, quantity: Math.min(line.quantity, product.stock) }
     })
   } catch {
     return []
