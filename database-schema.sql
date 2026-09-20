@@ -1,96 +1,40 @@
--- ============================================================================
---  DAR CHIC — SCHÉMA DE BASE DE DONNÉES
---  Boutique de sacs à main · Oran · paiement à la livraison
--- ----------------------------------------------------------------------------
---  Ce fichier est LA référence unique de la structure de la base et des
---  politiques de sécurité. Rien n'est créé ici pour l'instant : l'interface
---  tourne sur des données écrites en dur (voir src/data/products.ts).
---  On remplira ce fichier au fur et à mesure, table par table.
---
---  RÈGLE : les noms de colonnes ci-dessous sont déjà ceux utilisés dans le
---  front (Product, OrderDraft dans src/types.ts). Ils ne doivent pas diverger.
--- ============================================================================
+-- PRODUCTS
+create table products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  price integer not null,
+  image_url text,
+  stock integer default 0,
+  created_at timestamptz default now()
+);
 
+-- ORDERS
+create table orders (
+  id uuid primary key default gen_random_uuid(),
+  customer_name text not null,
+  phone text not null,
+  wilaya text not null,
+  commune text not null,
+  address text not null,
+  delivery_type text not null,
+  delivery_fee integer not null,
+  subtotal integer not null,
+  total integer not null,
+  status text default 'nouvelle',
+  created_at timestamptz default now()
+);
 
--- ----------------------------------------------------------------------------
---  TABLE 1 — products
---  Le catalogue. Une ligne = une pièce en vente.
--- ----------------------------------------------------------------------------
---  Colonnes prévues :
---    id           — identifiant de la pièce (uuid, ou slug texte comme
---                   'sac-rabat-bordeaux' comme aujourd'hui côté front)
---    name         — nom affiché sur la carte produit
---    description  — description courte du catalogue (1 à 2 phrases)
---    price        — prix unitaire en DA, entier (pas de centimes en pratique)
---    image_url    — chemin ou URL de la photo produit
---    stock        — quantité disponible ; 0 = épuisé, le bouton se désactive
---    created_at   — date d'ajout au catalogue
---
---  Sécurité prévue :
---    - Lecture publique (tout le monde doit pouvoir voir la boutique).
---    - Écriture réservée à l'administration de la boutique.
---    - `price` et `stock` ne doivent JAMAIS être acceptés depuis le client :
---      au moment de la commande, le serveur relit le prix dans cette table.
+-- ORDER_ITEMS
+create table order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references orders(id) on delete cascade,
+  product_id uuid references products(id),
+  quantity integer not null,
+  unit_price integer not null
+);
 
-
--- ----------------------------------------------------------------------------
---  TABLE 2 — orders
---  Une ligne = une commande passée depuis le formulaire « Bon de livraison ».
--- ----------------------------------------------------------------------------
---  Colonnes prévues :
---    id             — identifiant de la commande
---    reference      — référence lisible affichée à la cliente (ex. #ORN-0416)
---    full_name      — nom complet de la cliente
---    phone          — mobile algérien, 10 chiffres (05/06/07) ; c'est le seul
---                     moyen de contact, le livreur appelle avant de passer
---    wilaya         — une des 58 wilayas (voir src/data/wilayas.ts)
---    commune        — commune de livraison
---    address        — adresse complète en texte libre, repères inclus
---    delivery_type  — 'domicile' | 'stopdesk'
---    subtotal       — somme des lignes, hors livraison
---    delivery_fee   — 600 DA à domicile, 400 DA en stopdesk (tarif fixe actuel)
---    total          — subtotal + delivery_fee ; c'est ce que la cliente paie
---                     en espèces au livreur
---    status         — suivi interne : reçue → confirmée par téléphone →
---                     expédiée → livrée / annulée / retour
---    created_at     — horodatage de la commande
---
---  Sécurité prévue :
---    - Insertion publique (une cliente commande sans compte), mais AUCUNE
---      lecture publique : une commande contient nom, téléphone et adresse.
---    - Lecture et mise à jour du statut réservées à l'administration.
---    - subtotal / delivery_fee / total recalculés côté serveur à partir de
---      `products` et du tarif de livraison. Jamais de confiance au client :
---      sinon n'importe qui commande un sac à 1 DA.
-
-
--- ----------------------------------------------------------------------------
---  TABLE 3 — order_items
---  Le détail d'une commande. Une ligne = un produit × une quantité.
--- ----------------------------------------------------------------------------
---  Colonnes prévues :
---    id          — identifiant de la ligne
---    order_id    — référence vers orders.id (suppression en cascade)
---    product_id  — référence vers products.id
---    name        — nom du produit COPIÉ au moment de la commande
---    unit_price  — prix unitaire COPIÉ au moment de la commande
---    quantity    — quantité commandée (> 0)
---    line_total  — unit_price × quantity
---
---  Pourquoi copier `name` et `unit_price` au lieu de faire une jointure :
---    un bon de commande doit rester vrai. Si le prix d'un sac change le mois
---    prochain, la commande déjà livrée doit continuer d'afficher le prix payé.
---
---  Sécurité prévue :
---    - Mêmes règles que `orders` : insertion à la commande, pas de lecture
---      publique. L'accès suit toujours celui de la commande parente.
-
-
--- ============================================================================
---  À FAIRE PLUS TARD (dans l'ordre)
---    1. Créer `products` + charger les 8 pièces de src/data/products.ts
---    2. Créer `orders` et `order_items`
---    3. Écrire les politiques de sécurité décrites ci-dessus
---    4. Décrémenter `stock` à la confirmation de la commande, pas avant
---    5. Grille tarifaire de livraison par wilaya (remplacera le tarif fixe)
--- ============================================================================
+-- SÉCURITÉ
+alter table products enable row level security;
+alter table orders enable row level security;
+alter table order_items enable row level security;
