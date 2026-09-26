@@ -6,7 +6,27 @@ import { useCart } from '../context/CartContext'
 import { DELIVERY_FEES, DELIVERY_HINTS, DELIVERY_LABELS } from '../data/livraison'
 import { wilayas } from '../data/wilayas'
 import { formatDA, formatPhone, generateReference } from '../lib/format'
+import { supabase } from '../lib/supabase'
 import type { DeliveryType, OrderDraft } from '../types'
+
+/** Erreur d'envoi affichée telle quelle à l'écran : message complet et code de Supabase. */
+type EnvoiErreur = { etape: string; message: string; code?: string; detail?: string }
+
+/**
+ * Identifiant de commande (uuid) généré côté client, pour connaître l'id sans relire la ligne.
+ * `crypto.randomUUID` n'existe qu'en contexte sécurisé (https ou localhost) : repli manuel sinon.
+ */
+function nouvelIdentifiant(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  const octets = new Uint8Array(16)
+  crypto.getRandomValues(octets)
+  octets[6] = (octets[6] & 0x0f) | 0x40 // version 4
+  octets[8] = (octets[8] & 0x3f) | 0x80 // variante RFC 4122
+  const hex = [...octets].map((o) => o.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
 
 type FormState = {
   full_name: string
@@ -59,6 +79,8 @@ export default function Commande() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitted, setSubmitted] = useState(false)
   const [confirmed, setConfirmed] = useState<OrderDraft | null>(null)
+  const [envoiEnCours, setEnvoiEnCours] = useState(false)
+  const [envoiErreur, setEnvoiErreur] = useState<EnvoiErreur | null>(null)
 
   const deliveryFee = DELIVERY_FEES[form.delivery_type]
 
@@ -71,7 +93,7 @@ export default function Commande() {
     })
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitted(true)
 
@@ -81,6 +103,10 @@ export default function Commande() {
       document.querySelector<HTMLElement>('[data-error="true"]')?.focus()
       return
     }
+
+    if (envoiEnCours) return
+    setEnvoiErreur(null)
+    setEnvoiEnCours(true)
 
     const wilayaName = wilayas.find((w) => w.code === form.wilaya)?.name ?? form.wilaya
 
@@ -105,10 +131,71 @@ export default function Commande() {
       created_at: new Date().toISOString(),
     }
 
-    // Pas de backend aujourd’hui : la commande part dans la console.
-    // Demain, c’est un insert dans `orders` + `order_items`.
-    console.log('Nouvelle commande Dar Chic', order)
+    // 1. La commande. `status` garde sa valeur par défaut côté base.
+    //    La colonne s'appelle `customer_name` en base, `full_name` côté front.
+    //    L'id est généré ici : sans relecture après l'insert, `orders` n'a besoin
+    //    d'aucune politique SELECT. Les commandes contiennent des données personnelles.
+    const orderId = nouvelIdentifiant()
 
+    const reponseCommande = await supabase
+      .from('orders')
+      .insert({
+        id: orderId,
+        customer_name: order.full_name,
+        phone: order.phone,
+        wilaya: order.wilaya,
+        commune: order.commune,
+        address: order.address,
+        delivery_type: order.delivery_type,
+        delivery_fee: order.delivery_fee,
+        subtotal: order.subtotal,
+        total: order.total,
+      })
+
+    console.log('Supabase orders insert →', { id: orderId, ...reponseCommande })
+
+    if (reponseCommande.error) {
+      const erreur = reponseCommande.error
+      setEnvoiErreur({
+        etape: 'Enregistrement de la commande',
+        message: erreur.message,
+        code: erreur.code,
+        detail: [erreur.details, erreur.hint].filter(Boolean).join(' — ') || undefined,
+      })
+      setEnvoiEnCours(false)
+      return
+    }
+
+    // 2. Les lignes de la commande, rattachées à l'id généré plus haut.
+    //    `order_items` ne stocke ni le nom ni le total de ligne.
+    const reponseLignes = await supabase.from('order_items').insert(
+      order.items.map((line) => ({
+        order_id: orderId,
+        product_id: line.product_id,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+      })),
+    )
+
+    console.log('Supabase order_items insert →', reponseLignes)
+
+    if (reponseLignes.error) {
+      setEnvoiErreur({
+        etape: 'Enregistrement des articles',
+        message: reponseLignes.error.message,
+        code: reponseLignes.error.code,
+        detail:
+          [reponseLignes.error.details, reponseLignes.error.hint].filter(Boolean).join(' — ') ||
+          `La commande ${orderId} a bien été créée, mais sans ses articles.`,
+      })
+      setEnvoiEnCours(false)
+      return
+    }
+
+    // 3. Tout est passé : on garde la référence lisible à l'écran et l'id de la base dans la console.
+    console.log('Commande enregistrée', { id: orderId, reference: order.reference, order })
+
+    setEnvoiEnCours(false)
     setConfirmed(order)
     clear()
     window.scrollTo({ top: 0 })
@@ -382,10 +469,30 @@ export default function Commande() {
 
           <button
             type="submit"
-            className="dc-focus dc-press label mt-6 w-full rounded-full bg-terre px-6 py-4 text-blanc hover:bg-terre/90"
+            disabled={envoiEnCours}
+            className="dc-focus dc-press label mt-6 w-full rounded-full bg-terre px-6 py-4 text-blanc hover:bg-terre/90 disabled:cursor-not-allowed disabled:bg-filet disabled:text-gris"
           >
-            Confirmer ma commande
+            {envoiEnCours ? 'Envoi en cours…' : 'Confirmer ma commande'}
           </button>
+
+          {/* Échec de l'envoi : message complet de Supabase, panier conservé. */}
+          {envoiErreur ? (
+            <div role="alert" className="mt-4 border-2 border-noir p-4">
+              <p className="label">Commande non enregistrée</p>
+              <p className="mt-2 text-xs leading-relaxed text-gris">{envoiErreur.etape}</p>
+              <p className="mt-2 text-sm font-semibold leading-relaxed">{envoiErreur.message}</p>
+              {envoiErreur.code ? (
+                <p className="mt-2 font-mono text-xs">code {envoiErreur.code}</p>
+              ) : null}
+              {envoiErreur.detail ? (
+                <p className="mt-2 text-xs leading-relaxed text-gris">{envoiErreur.detail}</p>
+              ) : null}
+              <p className="mt-3 text-xs leading-relaxed text-gris">
+                Votre panier est conservé. Réessayez, la réponse complète est dans la console du
+                navigateur.
+              </p>
+            </div>
+          ) : null}
 
           {submitted && Object.keys(errors).length > 0 ? (
             <p role="alert" className="mt-4 text-center text-xs font-semibold text-noir">

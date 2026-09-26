@@ -38,3 +38,38 @@ create table order_items (
 alter table products enable row level security;
 alter table orders enable row level security;
 alter table order_items enable row level security;
+
+-- PRODUCTS
+create table products (
+  ...
+);
+
+create policy "Lecture publique du catalogue"
+  on products for select
+  to anon, authenticated
+  using (true);
+
+
+-- ORDERS
+create table orders (
+  ...
+);
+
+create policy "Tout le monde peut passer commande"
+  on orders for insert
+  to anon, authenticated
+  with check (true);
+
+-- Pas de policy SELECT : une commande contient nom, téléphone
+-- et adresse. Seul l'admin connecté pourra les lire (EP4).
+
+
+-- ORDER_ITEMS
+create table order_items (
+  ...
+);
+
+create policy "Insertion publique des lignes de commande"
+  on order_items for insert
+  to anon, authenticated
+  with check (true);
