@@ -79,6 +79,16 @@ Un seul fichier Archivo variable (axes `wdth` et `wght`) pour les titres et le t
 - **Catalogue** : le bouton « Ajouter » garde sa transition de 300ms, partagée avec l'apparition au survol ; il reçoit seulement le retrait au clic.
 - `prefers-reduced-motion` : ni retrait ni pulse.
 
+## Back-office (/admin)
+
+- **Auth** : Supabase Auth, `signInWithPassword`. La session vit dans `src/context/AuthContext.tsx`, au-dessus du routeur.
+- **Pages** : `/admin/login`, `/admin/commandes` (tableau, dépliage des articles, changement de statut), `/admin/produits` (liste + ajout, modification, suppression).
+- **Cadre** : `components/admin/AdminLayout.tsx` (barre noire, navigation, Déconnexion) ; `components/admin/RequireAuth.tsx` redirige vers `/admin/login` sans session. Les pages admin n'affichent ni le header boutique ni le pied de page.
+- **Statuts de commande** : `nouvelle` (défaut en base), `confirmée`, `expédiée`, `livrée`, `annulée`. Stockés tels quels dans `orders.status`.
+- **Design identique à la boutique** : mêmes tokens, `label`, `font-display`, boutons pilule, `dc-focus` et `dc-press`.
+- **⚠️ `RequireAuth` n'est que du décor.** Il cache l'écran, il ne protège pas les données : n'importe qui peut interroger l'API Supabase avec la clé publishable. La sécurité réelle viendra des politiques RLS sur `orders`, `order_items` et `products` (lecture et écriture réservées au compte du gérant). Tant qu'elles ne sont pas écrites, ne pas présenter ce back-office comme sécurisé.
+- Toute erreur Supabase (lecture, écriture, statut) s'affiche à l'écran avec son code, et la réponse complète part dans la console. Ne jamais masquer une erreur.
+
 ## Données : noms de colonnes en ANGLAIS
 
 Les champs produit sont **exactement** : `id`, `name`, `description`, `price`, `image_url`, `stock`.
