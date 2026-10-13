@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { formatDA, formatPhone } from '../../lib/format'
+import { logDev, logErreur } from '../../lib/log'
 import { supabase } from '../../lib/supabase'
 
 /** Statuts du suivi. `nouvelle` est la valeur par défaut de la base. */
@@ -56,11 +57,13 @@ export default function AdminCommandes() {
       )
       .order('created_at', { ascending: false })
 
-    console.log('Supabase orders select →', reponse)
-
     const { data, error, status } = reponse
 
+    // Jamais le contenu : il porte nom, téléphone et adresse. Seulement le volume reçu.
+    logDev('Supabase orders select →', { status, lignes: data?.length ?? 0 })
+
     if (error) {
+      logErreur('Supabase orders select →', error)
       setEtat({
         statut: 'erreur',
         message: 'Impossible de lire les commandes.',
@@ -90,10 +93,11 @@ export default function AdminCommandes() {
     setErreurMaj(null)
 
     const reponse = await supabase.from('orders').update({ status: statut }).eq('id', commande.id)
-    console.log('Supabase orders update →', reponse)
+    logDev('Supabase orders update →', { status: reponse.status })
     setMajEnCours(null)
 
     if (reponse.error) {
+      logErreur('Supabase orders update →', reponse.error)
       setErreurMaj(
         `Statut non modifié — [${reponse.status}${reponse.error.code ? ' · ' + reponse.error.code : ''}] ${reponse.error.message}`,
       )

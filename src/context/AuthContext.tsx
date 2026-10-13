@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { logDev, logErreur } from '../lib/log'
 import { supabase } from '../lib/supabase'
 
 type AuthContextValue = {
@@ -27,14 +28,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void supabase.auth.getSession().then(({ data, error }) => {
       if (annule) return
-      if (error) console.error('Supabase auth getSession →', error)
+      if (error) logErreur('Supabase auth getSession →', error.message)
       setSession(data.session)
       setChargement(false)
     })
 
     // Connexion, déconnexion, rafraîchissement du jeton, ouverture dans un autre onglet.
     const { data } = supabase.auth.onAuthStateChange((evenement, nouvelleSession) => {
-      console.log('Supabase auth →', evenement, nouvelleSession?.user?.email ?? null)
+      // L'e-mail de session ne sort pas dans la console : seul l'événement est utile.
+      logDev('Supabase auth →', evenement)
       setSession(nouvelleSession)
       setChargement(false)
     })
@@ -51,14 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       chargement,
       seConnecter: async (email, motDePasse) => {
         const reponse = await supabase.auth.signInWithPassword({ email, password: motDePasse })
-        console.log('Supabase signInWithPassword →', reponse)
-        if (reponse.error) return reponse.error.message
+        // La réponse contient l'e-mail et les jetons de session : on ne journalise que l'issue.
+        if (reponse.error) {
+          logErreur('Supabase signInWithPassword →', reponse.error.message)
+          return reponse.error.message
+        }
+        logDev('Supabase signInWithPassword → connexion réussie')
         setSession(reponse.data.session)
         return null
       },
       seDeconnecter: async () => {
         const { error } = await supabase.auth.signOut()
-        if (error) console.error('Supabase signOut →', error)
+        if (error) logErreur('Supabase signOut →', error.message)
         setSession(null)
       },
     }),

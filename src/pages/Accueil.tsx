@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import BandeConfiance from '../components/BandeConfiance'
 import ProductCard from '../components/ProductCard'
+import { logDev, logErreur } from '../lib/log'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { Product } from '../types'
 
@@ -18,7 +19,7 @@ type EtatCatalogue =
 /**
  * Le catalogue vient de la table `products` de Supabase.
  * Toute anomalie (requête en échec, table vide, configuration absente) est affichée
- * à l'écran, jamais avalée en silence, et la réponse brute part dans la console.
+ * à l'écran, jamais avalée en silence, et l'erreur part dans la console.
  */
 function useCatalogue(): EtatCatalogue {
   const [etat, setEtat] = useState<EtatCatalogue>({ statut: 'chargement' })
@@ -41,14 +42,15 @@ function useCatalogue(): EtatCatalogue {
         .select('id, name, description, price, image_url, stock')
         .order('created_at', { ascending: true })
 
-      // Réponse complète dans la console, comme demandé : data, error, status, count.
-      console.log('Supabase products →', reponse)
+      // Réponse complète en développement ; en production, seules les erreurs sortent.
+      logDev('Supabase products →', reponse)
 
       if (annule) return
 
       const { data, error, status } = reponse
 
       if (error) {
+        logErreur('Supabase products →', error)
         setEtat({
           statut: 'erreur',
           message: 'La requête vers Supabase a échoué.',

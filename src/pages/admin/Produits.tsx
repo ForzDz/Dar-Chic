@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import Field, { fieldBorder, fieldClass } from '../../components/Field'
 import { formatDA } from '../../lib/format'
+import { logDev, logErreur } from '../../lib/log'
 import { supabase } from '../../lib/supabase'
 import type { Product } from '../../types'
 
@@ -41,7 +42,7 @@ export default function AdminProduits() {
       .select('id, name, description, price, image_url, stock')
       .order('created_at', { ascending: true })
 
-    console.log('Supabase products select →', reponse)
+    logDev('Supabase products select →', reponse)
 
     const { data, error, status } = reponse
 
@@ -87,6 +88,7 @@ export default function AdminProduits() {
   function signalerErreur(action: string, reponse: { status: number; error: { message: string; code?: string; hint?: string | null } | null }) {
     const erreur = reponse.error
     if (!erreur) return false
+    logErreur(action, erreur)
     setErreurEcriture(
       `${action} — [${reponse.status}${erreur.code ? ' · ' + erreur.code : ''}] ${erreur.message}${erreur.hint ? ' — ' + erreur.hint : ''}`,
     )
@@ -128,7 +130,7 @@ export default function AdminProduits() {
       ? await supabase.from('products').update(valeurs).eq('id', formulaire.id)
       : await supabase.from('products').insert(valeurs)
 
-    console.log(formulaire.id ? 'Supabase products update →' : 'Supabase products insert →', reponse)
+    logDev(formulaire.id ? 'Supabase products update →' : 'Supabase products insert →', reponse)
     setEnregistrement(false)
 
     if (signalerErreur(formulaire.id ? 'Modification refusée' : 'Ajout refusé', reponse)) return
@@ -140,7 +142,7 @@ export default function AdminProduits() {
   async function supprimer(produit: Product) {
     setErreurEcriture(null)
     const reponse = await supabase.from('products').delete().eq('id', produit.id)
-    console.log('Supabase products delete →', reponse)
+    logDev('Supabase products delete →', reponse)
     setASupprimer(null)
 
     if (signalerErreur('Suppression refusée', reponse)) return

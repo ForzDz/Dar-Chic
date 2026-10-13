@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { logErreur } from './log'
 
 /**
  * Client Supabase, unique pour toute l'application.
@@ -13,7 +14,7 @@ const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKey)
 
 if (!isSupabaseConfigured) {
-  console.error(
+  logErreur(
     'Supabase : configuration incomplète dans .env',
     { VITE_SUPABASE_URL: supabaseUrl ?? '(absente)', VITE_SUPABASE_PUBLISHABLE_KEY: supabasePublishableKey ? '(présente)' : '(absente)' },
   )

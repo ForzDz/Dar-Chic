@@ -2,7 +2,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import CartLine from '../components/CartLine'
 import Totaux from '../components/Totaux'
 import { useCart } from '../context/CartContext'
-import { products } from '../data/products'
 
 export default function Panier() {
   const { items, count, subtotal } = useCart()
@@ -15,8 +14,7 @@ export default function Panier() {
           Panier vide
         </h1>
         <p className="mx-auto mt-4 max-w-[38ch] text-sm leading-relaxed text-gris">
-          Rien à livrer pour l’instant. La collection fait{' '}
-          <span className="font-mono">{products.length}</span> pièces, ça se regarde en une minute.
+          Rien à livrer pour l’instant. La collection se regarde en une minute.
         </p>
         <Link
           to="/"

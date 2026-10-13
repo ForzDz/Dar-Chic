@@ -6,6 +6,7 @@ import { useCart } from '../context/CartContext'
 import { DELIVERY_FEES, DELIVERY_HINTS, DELIVERY_LABELS } from '../data/livraison'
 import { wilayas } from '../data/wilayas'
 import { formatDA, formatPhone, generateReference } from '../lib/format'
+import { logDev, logErreur } from '../lib/log'
 import { supabase } from '../lib/supabase'
 import type { DeliveryType, OrderDraft } from '../types'
 
@@ -152,10 +153,11 @@ export default function Commande() {
         total: order.total,
       })
 
-    console.log('Supabase orders insert →', { id: orderId, ...reponseCommande })
+    logDev('Supabase orders insert →', { id: orderId, status: reponseCommande.status })
 
     if (reponseCommande.error) {
       const erreur = reponseCommande.error
+      logErreur('Supabase orders insert →', erreur)
       setEnvoiErreur({
         etape: 'Enregistrement de la commande',
         message: erreur.message,
@@ -177,9 +179,10 @@ export default function Commande() {
       })),
     )
 
-    console.log('Supabase order_items insert →', reponseLignes)
+    logDev('Supabase order_items insert →', { status: reponseLignes.status })
 
     if (reponseLignes.error) {
+      logErreur('Supabase order_items insert →', reponseLignes.error)
       setEnvoiErreur({
         etape: 'Enregistrement des articles',
         message: reponseLignes.error.message,
@@ -192,8 +195,8 @@ export default function Commande() {
       return
     }
 
-    // 3. Tout est passé : on garde la référence lisible à l'écran et l'id de la base dans la console.
-    console.log('Commande enregistrée', { id: orderId, reference: order.reference, order })
+    // 3. Tout est passé. La commande elle-même (nom, téléphone, adresse) ne sort jamais dans la console.
+    logDev('Commande enregistrée', { id: orderId, reference: order.reference })
 
     setEnvoiEnCours(false)
     setConfirmed(order)
