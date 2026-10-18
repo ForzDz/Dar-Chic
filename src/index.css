@@ -80,8 +80,8 @@
  * Chaque élément : 800ms, cubic-bezier(0.16, 1, 0.3, 1), fill-mode both.
  * Chronologie (départ → fin) :
  *   barre d'annonce + navbar   0ms   → 800ms
- *   « DAR CHIC » géant         160ms → 960ms
- *   photo du sac               320ms → 1120ms
+ *   « DAR CHIC » géant         160ms → 960ms   (transform seul, opacité 1 : candidat LCP)
+ *   photo du sac               320ms → 1120ms  (transform seul, opacité 1 : candidat LCP)
  *   bouton                     500ms → 1300ms
  *   « COLLECTION 2026 »        660ms → 1460ms   ← tout est en place en moins de 2s
  * Le hero ne joue la séquence que s'il porte .hero-intro (premier affichage de l'accueil) ;
@@ -91,8 +91,14 @@
 .intro-nav {
   animation: intro-descend 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+/*
+ * Le nom géant et la photo du sac sont les deux candidats LCP de la page.
+ * Chrome ignore un élément qui démarre à `opacity: 0` : ces deux-là n'animent
+ * donc que leur transform et restent opaques du premier frame. Ne pas y remettre
+ * de fondu, sinon PageSpeed repart en NO_LCP.
+ */
 .hero-intro .intro-nom {
-  animation: intro-monte 800ms cubic-bezier(0.16, 1, 0.3, 1) 160ms both;
+  animation: intro-monte-opaque 800ms cubic-bezier(0.16, 1, 0.3, 1) 160ms both;
 }
 .hero-intro .intro-sac {
   animation: intro-sac 800ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both;
@@ -124,13 +130,20 @@
     transform: none;
   }
 }
+/* Variantes sans fondu, réservées aux éléments candidats au LCP. */
+@keyframes intro-monte-opaque {
+  from {
+    transform: translateY(24px);
+  }
+  to {
+    transform: none;
+  }
+}
 @keyframes intro-sac {
   from {
-    opacity: 0;
     transform: translateY(32px) scale(0.96);
   }
   to {
-    opacity: 1;
     transform: none;
   }
 }
