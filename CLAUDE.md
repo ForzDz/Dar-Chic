@@ -47,6 +47,8 @@ Un seul fichier Archivo variable (axes `wdth` et `wght`) pour les titres et le t
 
 `.font-display` et `.label` sont définis dans `src/index.css`. Pas de serif, nulle part.
 
+**Polices hébergées dans le projet** (`public/fonts/`, déclarées dans `src/index.css`) : **jamais de Google Fonts**, qui bloquait l'affichage (−1,5 s sur PageSpeed mobile). Seul `archivo-latin.woff2`, la police du titre du hero, est préchargé dans `index.html`.
+
 ### La règle des chiffres
 
 **Tout prix, quantité, total, frais de livraison, stock ou numéro de commande s'écrit en Space Mono (`font-mono`).** Sans exception, y compris au milieu d'une phrase ou d'un label (ex. `Plus que <span className="font-mono">2</span>`).
@@ -83,6 +85,7 @@ Un seul fichier Archivo variable (axes `wdth` et `wght`) pour les titres et le t
 
 - **Auth** : Supabase Auth, `signInWithPassword`. La session vit dans `src/context/AuthContext.tsx`, au-dessus du routeur.
 - **Pages** : `/admin/login`, `/admin/commandes` (tableau, dépliage des articles, changement de statut), `/admin/produits` (liste + ajout, modification, suppression).
+- **Chargement différé** : les pages admin, `RequireAuth` et `AdminLayout` passent par `React.lazy` dans `App.tsx`. Ne pas les importer directement ailleurs, sinon elles reviennent dans le JavaScript de la boutique.
 - **Cadre** : `components/admin/AdminLayout.tsx` (barre noire, navigation, Déconnexion) ; `components/admin/RequireAuth.tsx` redirige vers `/admin/login` sans session. Les pages admin n'affichent ni le header boutique ni le pied de page.
 - **Statuts de commande** : `nouvelle` (défaut en base), `confirmée`, `expédiée`, `livrée`, `annulée`. Stockés tels quels dans `orders.status`.
 - **Design identique à la boutique** : mêmes tokens, `label`, `font-display`, boutons pilule, `dc-focus` et `dc-press`.

@@ -12,12 +12,8 @@
     <title>Dar Chic — Sacs a main, Oran</title>
     <!-- Photo du hero : élément LCP de la page, demandée avant même que le JS ne s'exécute. -->
     <link rel="preload" as="image" href="/hero/sac.webp" type="image/webp" fetchpriority="high" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..900&family=Space+Mono:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Police du titre du hero (Archivo, latin) : hébergée dans le projet, voir src/index.css. -->
+    <link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>
